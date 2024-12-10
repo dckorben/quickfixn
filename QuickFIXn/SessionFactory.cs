@@ -32,7 +32,7 @@ namespace QuickFix
 
             _application = app;
             _messageStoreFactory = storeFactory;
-            _loggerFactory = loggerFactory ?? new NullLoggerFactory();
+            _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             _messageFactory = messageFactory ?? new DefaultMessageFactory();
         }
 
