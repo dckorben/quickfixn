@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
 
 namespace QuickFix.Logger;
 
@@ -6,7 +7,7 @@ namespace QuickFix.Logger;
 /// FIXME - needs to log sessionIDs, timestamps, etc.
 /// </summary>
 [Obsolete("Use Microsoft.Extensions.Logging instead.")]
-public class ScreenLog : ILog
+public class ScreenLog : ILog, ILogger
 {
     private readonly object _sync = new ();
     private readonly bool _logIncoming;
@@ -59,16 +60,27 @@ public class ScreenLog : ILog
     }
     #endregion
 
-    #region IDisposable implementation
-    public void Dispose()
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter)
     {
-        Dispose(true);
-        System.GC.SuppressFinalize(this);
+        if (!IsEnabled(logLevel)) return;
+        if (eventId == LogEventIds.IncomingMessage && _logIncoming)
+        {
+            Console.WriteLine($"<incoming> {formatter(state, exception).Replace(Message.SOH, '|')}");
+        }
+        else if (eventId == LogEventIds.OutgoingMessage && _logOutgoing)
+        {
+            Console.WriteLine($"<outgoing> {formatter(state, exception).Replace(Message.SOH, '|')}");
+        }
+        else if (_logEvent)
+        {
+            Console.WriteLine($"<event> {formatter(state, exception)}");
+        }
     }
-    protected virtual void Dispose(bool disposing)
-    {
-        // Nothing to dispose of...
-    }
-    ~ScreenLog() => Dispose(false);
-    #endregion
+
+    public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
+
+    public IDisposable BeginScope<TState>(TState state) where TState : notnull => default!;
+
+    public void Dispose(){}
 }
