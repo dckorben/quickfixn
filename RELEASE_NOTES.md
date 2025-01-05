@@ -45,6 +45,18 @@ What's New
 * #900 - correct CompositeLog to use IFactory.CreateNonSessionLog when appropriate (gbirchmeier)
 * #891 - make NonSessionLog implement IDisposable and fix the IOException (VAllens)
 * #893 - Upgrade the unit testing framework to the latest version and remove obsolete Assert methods (VAllens)
+* #907 - A fix to make body-less messages work, specifically 35=n aka XMLnonFIX (gbirchmeier)
+* #910 - faster Message.GetMsgType that doesn't use Regex (jkulubya)
+* #516 - remove ability to toggle Session-enable via HttpServer because it never really worked (gbirchmeier)
+* #913/#741 - new FieldMap.ReadGroups for iterating on groups (NoviProg/gbirchmeier)
+* #914 - Optimize MessageCracker.IsHandlerMethod (vasily-balansea)
+* #742 - Improvements to HTTP web proxy (IanLeeClaxton)
+* #277 - change FileStore.SetSeqNum() to dispose StreamWriter (hlibman)
+* #921 - clean up generated code (gbirchmeier)
+     * enable nullable in Messages projects
+     * mark IMessageFactory.Create's Group return value as nullable
+     * rename/deprecate a name-convention-breaking static const
+     * reduce code size and unnecessary empty lines
 
 ### v1.12.0
 

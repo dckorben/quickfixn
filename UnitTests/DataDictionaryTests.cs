@@ -373,6 +373,21 @@ namespace UnitTests
             Assert.That(news.GetGroup(33).IsField(355), Is.True); // EncodedText
         }
 
+        [Test]
+        public void TestCheckMsgType() {
+            DataDictionary dd = new DataDictionary();
+            dd.LoadTestFIXSpec("msg_type_test");
+
+            Assert.Throws(typeof(InvalidMessageType), delegate { dd.CheckMsgType("foo"); });
+
+            // True check, case 1: DD has a <message> definition for this one
+            Assert.DoesNotThrow(delegate { dd.CheckMsgType("B"); });
+
+            // True check, case 2: Type is in field 35, but there is no Message type
+            Assert.That(dd.Messages, Does.Not.ContainKey("bar")); // Sanity check; if fails, fix the test.
+            Assert.DoesNotThrow(delegate { dd.CheckMsgType("bar"); });
+        }
+
         private static XmlNode MakeNode(string xmlString)
         {
             XmlDocument doc = new XmlDocument();
