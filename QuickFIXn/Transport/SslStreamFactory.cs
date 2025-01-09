@@ -20,10 +20,10 @@ internal sealed class SslStreamFactory
     private const string CLIENT_AUTHENTICATION_OID = "1.3.6.1.5.5.7.3.2";
     private const string SERVER_AUTHENTICATION_OID = "1.3.6.1.5.5.7.3.1";
 
-    public SslStreamFactory(SocketSettings settings, ILogger nonSessionLog)
+    public SslStreamFactory(SocketSettings settings, IQuickFixLoggerFactory loggerFactory)
     {
         _socketSettings = settings;
-        _nonSessionLog = nonSessionLog;
+        _nonSessionLog = loggerFactory.CreateNonSessionLogger<SslStreamFactory>();
     }
 
     /// <summary>

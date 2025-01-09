@@ -1,5 +1,4 @@
 ﻿using System;
-using Microsoft.Extensions.Logging;
 
 namespace QuickFix.Logger;
 
@@ -7,7 +6,7 @@ namespace QuickFix.Logger;
 /// FIXME - needs to log sessionIDs, timestamps, etc.
 /// </summary>
 [Obsolete("Use Microsoft.Extensions.Logging instead.")]
-public class ScreenLog : ILog, ILogger
+public class ScreenLog : ILog
 {
     private readonly object _sync = new ();
     private readonly bool _logIncoming;
@@ -59,28 +58,6 @@ public class ScreenLog : ILog, ILogger
         }
     }
     #endregion
-
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-        Func<TState, Exception?, string> formatter)
-    {
-        if (!IsEnabled(logLevel)) return;
-        if (eventId == LogEventIds.IncomingMessage && _logIncoming)
-        {
-            Console.WriteLine($"<incoming> {formatter(state, exception).Replace(Message.SOH, '|')}");
-        }
-        else if (eventId == LogEventIds.OutgoingMessage && _logOutgoing)
-        {
-            Console.WriteLine($"<outgoing> {formatter(state, exception).Replace(Message.SOH, '|')}");
-        }
-        else if (_logEvent)
-        {
-            Console.WriteLine($"<event> {formatter(state, exception)}");
-        }
-    }
-
-    public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
-
-    public IDisposable BeginScope<TState>(TState state) => default!;
 
     public void Dispose(){}
 }
