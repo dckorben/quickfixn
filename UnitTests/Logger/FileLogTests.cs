@@ -57,8 +57,8 @@ public class FileLogTests
 
         settings.Set(sessionId, config);
 
-        FileLogFactory fileLogFactory = new FileLogFactory(settings);
-        _log = (FileLog) fileLogFactory.Create(sessionId);
+        FileLogFactory factory = new FileLogFactory(settings);
+        _log = (FileLog) factory.Create(sessionId);
 
         _log.OnEvent("some event");
         _log.OnIncoming("some incoming");
