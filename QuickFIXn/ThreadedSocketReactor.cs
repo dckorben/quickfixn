@@ -22,7 +22,7 @@ namespace QuickFix
             get { lock (_sync) { return _state; } }
         }
 
-        private readonly object _sync = new ();
+        private readonly Lock _sync = new();
         private State _state = State.RUNNING;
         private long _nextClientId = 0;
         private Thread? _serverThread = null;

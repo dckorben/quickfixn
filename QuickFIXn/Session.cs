@@ -23,7 +23,7 @@ namespace QuickFix
         private static readonly Dictionary<SessionID, Session> Sessions = new();
         private static readonly HashSet<string> AdminMsgTypes = new() { "0", "A", "1", "2", "3", "4", "5" };
 
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
         private IResponder? _responder;
         private readonly SessionSchedule _schedule;
         private readonly SessionState _state;

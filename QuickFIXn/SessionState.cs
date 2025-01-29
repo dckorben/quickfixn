@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using QuickFix.Logger;
 using QuickFix.Store;
 using MessagesBySeqNum = System.Collections.Generic.Dictionary<ulong, QuickFix.Message>;
@@ -14,7 +15,7 @@ namespace QuickFix
     {
         #region Private Members
 
-        private readonly object _sync = new object();
+        private readonly Lock _sync = new();
         private bool _isEnabled = true;
         private bool _receivedLogon = false;
         private bool _receivedReset = false;

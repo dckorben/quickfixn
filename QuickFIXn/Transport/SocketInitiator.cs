@@ -21,7 +21,7 @@ namespace QuickFix.Transport
         private readonly SocketSettings _socketSettings = new();
         private readonly Dictionary<SessionID, SocketInitiatorThread> _threads = new();
         private readonly Dictionary<SessionID, int> _sessionToHostNum = new();
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
         
         public SocketInitiator(
             IApplication application,

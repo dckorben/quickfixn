@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using QuickFix.Fields.Converters;
 using QuickFix.Util;
 
@@ -9,7 +10,7 @@ namespace QuickFix.Logger;
 /// </summary>
 public class FileLog : ILog
 {
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
 
     private System.IO.StreamWriter _messageLog;
     private System.IO.StreamWriter _eventLog;

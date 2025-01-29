@@ -4,6 +4,7 @@ using System.Net;
 using System;
 using QuickFix.Logger;
 using QuickFix.Store;
+using System.Threading;
 
 namespace QuickFix
 {
@@ -19,7 +20,7 @@ namespace QuickFix
         private readonly SessionFactory _sessionFactory;
         private bool _isStarted = false;
         private bool _disposed = false;
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
         private readonly NonSessionLog _nonSessionLog;
 
         #region Constructors

@@ -11,7 +11,7 @@ namespace QuickFix
         // from constructor
         private readonly SessionSettings _settings;
 
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
         private readonly Dictionary<SessionID, Session> _sessions = new();
         private readonly HashSet<SessionID> _sessionIDs = new();
         private readonly HashSet<SessionID> _pending = new();
