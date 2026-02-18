@@ -173,6 +173,51 @@ public class SslStreamFactoryTest
     }
 
     [Test]
+    public void ServerLocalIntermediateCertificateChain()
+    {
+        SettingsDictionary dict = new();
+        dict.SetBool(SessionSettings.SSL_ENABLE, true);
+        dict.SetBool(SessionSettings.SSL_VALIDATE_CERTIFICATES, true);
+        dict.SetBool(SessionSettings.SSL_CHECK_CERTIFICATE_REVOCATION, false);
+        dict.SetString(SessionSettings.SSL_CERTIFICATE, ServerIntermediateCertificatePath);
+        dict.SetString(SessionSettings.SSL_CA_CERTIFICATE, CaIntermediateCertificatePath);
+
+        var settings = new SocketSettings();
+        settings.Configure(dict);
+
+        var logger = new LogFactoryAdapter(new ScreenLogFactory(true, true, true));
+        var factory = new SslStreamFactory(settings, logger);
+
+        var resultServer = factory.VerifyRemoteCertificate(ServerIntermediateCertificate, SslPolicyErrors.RemoteCertificateChainErrors, SslStreamFactory.SERVER_AUTHENTICATION_OID);
+        var resultClient = factory.VerifyRemoteCertificate(ServerIntermediateCertificate, SslPolicyErrors.RemoteCertificateChainErrors, SslStreamFactory.CLIENT_AUTHENTICATION_OID);
+
+        Assert.That(resultServer, Is.True);
+        Assert.That(resultClient, Is.False);
+    }
+
+    [Test]
+    public void ServerPublicCertificateChain()
+    {
+        SettingsDictionary dict = new();
+        dict.SetBool(SessionSettings.SSL_ENABLE, true);
+        dict.SetBool(SessionSettings.SSL_VALIDATE_CERTIFICATES, true);
+        dict.SetBool(SessionSettings.SSL_CHECK_CERTIFICATE_REVOCATION, false);
+        dict.SetString(SessionSettings.SSL_CERTIFICATE, ServerCertificatePath);
+
+        var settings = new SocketSettings();
+        settings.Configure(dict);
+
+        var logger = new LogFactoryAdapter(new ScreenLogFactory(true, true, true));
+        var factory = new SslStreamFactory(settings, logger);
+
+        var resultServer = factory.VerifyRemoteCertificate(ServerIntermediateCertificate, SslPolicyErrors.RemoteCertificateChainErrors, SslStreamFactory.SERVER_AUTHENTICATION_OID);
+        var resultClient = factory.VerifyRemoteCertificate(ServerIntermediateCertificate, SslPolicyErrors.RemoteCertificateChainErrors, SslStreamFactory.CLIENT_AUTHENTICATION_OID);
+
+        Assert.That(resultServer, Is.True);
+        Assert.That(resultClient, Is.False);
+    }
+
+    [Test]
     public void ServerLocalCertificateChainFailsWithWrongCA()
     {
         SettingsDictionary dict = new();
