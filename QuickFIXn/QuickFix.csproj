@@ -5,7 +5,6 @@
     <Title>QuickFIX/n</Title>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <PackageId>QuickFIXn.Core</PackageId>
     <PackageTitle>$(Title)</PackageTitle>
     <Description>
@@ -16,7 +15,7 @@
     </Description>
     <Copyright>Copyright © 2011 - $([System.DateTime]::UtcNow.Year) QuickFIXn.org. All rights reserved.</Copyright>
     <Authors>Connamara Systems, LLC and QuickFIX/n contributors</Authors>
-    <Version>1.13.0</Version>
+    <Version>1.14.0</Version>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <RootNamespace>QuickFix</RootNamespace>
     <Platforms>AnyCPU;x64</Platforms>
@@ -42,5 +41,9 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>UnitTests</_Parameter1>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
   </ItemGroup>
 </Project>

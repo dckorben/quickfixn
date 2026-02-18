@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using QuickFix.ObjectPooling;
+using System.Collections.Generic;
 using System.IO;
 
 namespace QuickFix;
@@ -71,6 +72,7 @@ public class SessionSettings
     public const string MAX_LATENCY = "MaxLatency";
     public const string SOCKET_IGNORE_PROXY = "SocketIgnoreProxy";
     public const string ENCODING = "Encoding";
+    public const string CME_ENHANCED_RESEND = "CmeEnhancedResend";
 
     public const string SSL_ENABLE = "SSLEnable";
     public const string SSL_SERVERNAME = "SSLServerName";
@@ -233,8 +235,8 @@ public class SessionSettings
 
     public override string ToString()
     {
-        System.Text.StringBuilder s = new System.Text.StringBuilder();
-        s.AppendLine("[DEFAULT]");
+        using PooledStringBuilder pooledSb = new PooledStringBuilder();
+        System.Text.StringBuilder s = pooledSb.Builder.AppendLine("[DEFAULT]");
 
         foreach (System.Collections.Generic.KeyValuePair<string, string> entry in _defaults)
             s.Append(entry.Key).Append('=').AppendLine(entry.Value);

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using QuickFix.Fields.Converters;
+using QuickFix.ObjectPooling;
 using QuickFix.Util;
 
 namespace QuickFix.Logger;
@@ -43,8 +44,8 @@ public class FileLog : ILog
 
     public static string Prefix(SessionID sessionId)
     {
-        System.Text.StringBuilder prefix = new System.Text.StringBuilder(sessionId.BeginString)
-            .Append('-').Append(sessionId.SenderCompID);
+        using PooledStringBuilder pooledSb = new PooledStringBuilder();
+        System.Text.StringBuilder prefix = pooledSb.Builder.Append(sessionId.BeginString).Append('-').Append(sessionId.SenderCompID);
         if (SessionID.IsSet(sessionId.SenderSubID))
             prefix.Append('_').Append(sessionId.SenderSubID);
         if (SessionID.IsSet(sessionId.SenderLocationID))
@@ -90,6 +91,9 @@ public class FileLog : ILog
 
     #region Log Members
 
+    /// <summary>
+    /// Delete log content and leave ready for next log message
+    /// </summary>
     public void Clear()
     {
         lock (_sync)
@@ -98,6 +102,9 @@ public class FileLog : ILog
 
             _messageLog?.Dispose();
             _eventLog?.Dispose();
+
+            _messageLog = null;
+            _eventLog = null;
 
             EnsureMessageLogInit(append: false);
             EnsureEventLogInit(append: false);
@@ -143,7 +150,7 @@ public class FileLog : ILog
         GC.SuppressFinalize(this);
     }
 
-    private bool _disposed = false;
+    private bool _disposed;
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing)

@@ -5,19 +5,17 @@ using QuickFix.Logger;
 namespace UnitTests.Logger;
 
 [TestFixture]
-public class NonSessionLogTests {
+public class NonSessionLogTests
+{
     private readonly string _logDirectory = Path.Combine(TestContext.CurrentContext.TestDirectory, "log");
-
-    private NonSessionLog? _nslog;
 
     [TearDown]
     public void Teardown()
     {
-        _nslog?.Dispose();
-        _nslog = null;
     }
-    
-    private FileLogFactory CreateFileLogFactory() {
+
+    private FileLogFactory CreateFileLogFactory()
+    {
         if (Directory.Exists(_logDirectory))
             Directory.Delete(_logDirectory, true);
 
@@ -32,47 +30,67 @@ public class NonSessionLogTests {
                                TargetCompID=TARGETCOMP
                                """;
 
-        QuickFix.SessionSettings settings = new QuickFix.SessionSettings(
+        QuickFix.SessionSettings settings = new(
             new StringReader(configString));
 
         return new FileLogFactory(settings);
     }
 
     [Test]
-    public void TestWithFileLogFactory() {
+    public void TestWithFileLogFactory()
+    {
         FileLogFactory flf = CreateFileLogFactory();
-        _nslog = new NonSessionLog(flf);
+#pragma warning disable CS0618
+        NonSessionLog nslog = new(flf);
+#pragma warning restore CS0618
 
         // Log artifact not created before first log-write
         Assert.That(Directory.Exists(_logDirectory), Is.False);
 
         // Log artifact exists after first log-write
-        _nslog.OnEvent("some text");
+        nslog.OnEvent("some text");
         Assert.That(Directory.Exists(_logDirectory));
         Assert.That(File.Exists(Path.Combine(_logDirectory, "Non-Session-Log.event.current.log")));
 
         // cleanup (don't delete log unless success)
-        _nslog.Dispose();
-        _nslog = null;
         Directory.Delete(_logDirectory, true);
     }
 
     [Test]
-    public void TestWithCompositeLogFactory() {
+    public void TestTwoFileLogs()
+    {
+        FileLogFactory flf = CreateFileLogFactory();
+#pragma warning disable CS0618
+        NonSessionLog nslog = new(flf);
+#pragma warning restore CS0618
+        nslog.OnEvent("log1");
+
+#pragma warning disable CS0618
+        NonSessionLog nslog2 = new(flf);
+#pragma warning restore CS0618
+        nslog2.OnEvent("log2");
+
+        // cleanup (don't delete log unless success)
+        Directory.Delete(_logDirectory, true);
+    }
+
+    [Test]
+    public void TestWithCompositeLogFactory()
+    {
         CompositeLogFactory clf = new CompositeLogFactory([CreateFileLogFactory(), new NullLogFactory()]);
-        _nslog = new NonSessionLog(clf);
+#pragma warning disable CS0618
+        NonSessionLog nslog = new(clf);
+#pragma warning restore CS0618
 
         // Log artifact not created before first log-write
         Assert.That(Directory.Exists(_logDirectory), Is.False);
 
         // Log artifact exists after first log-write
-        _nslog.OnEvent("some text");
+        nslog.OnEvent("some text");
         Assert.That(Directory.Exists(_logDirectory));
         Assert.That(File.Exists(Path.Combine(_logDirectory, "Non-Session-Log.event.current.log")));
 
         // cleanup (don't delete log unless success)
-        _nslog.Dispose();
-        _nslog = null;
         Directory.Delete(_logDirectory, true);
     }
 }

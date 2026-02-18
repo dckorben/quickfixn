@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using QuickFix.Logger;
+using Microsoft.Extensions.Logging;
 using QuickFix.Store;
 using MessagesBySeqNum = System.Collections.Generic.Dictionary<ulong, QuickFix.Message>;
 
@@ -46,7 +46,13 @@ namespace QuickFix
 
         public bool ShouldSendLogon => IsInitiator && !SentLogon;
 
-        public ILog Log { get; }
+        public ILogger Log { get; }
+
+        /// <summary>
+        /// True if the last message processed was an admin message from the queue.
+        /// Needed for an obscure SequenceReset scenario (see issue #390).
+        /// </summary>
+        internal bool LastProcessedMessageWasQueued { get; set; }
 
         #endregion
 
@@ -154,9 +160,9 @@ namespace QuickFix
 
         #endregion
 
-        public SessionState(bool isInitiator, ILog log, int heartBtInt, IMessageStore messageStore)
+        internal SessionState(bool isInitiator, ILogger logger, int heartBtInt, IMessageStore messageStore)
         {
-            Log = log;
+            Log = logger;
             HeartBtInt = heartBtInt;
             IsInitiator = isInitiator;
             _lastReceivedTimeDt = DateTime.UtcNow;
@@ -281,24 +287,26 @@ namespace QuickFix
             }
         }
 
-        public void SetResendRange(SeqNumType begin, SeqNumType end, SeqNumType chunkEnd = ResendRange.NOT_SET)
+        public void SetResendRange(
+            SeqNumType begin, SeqNumType end, SeqNumType trigger,
+            Message resendRequest, SeqNumType chunkEnd = ResendRange.NOT_SET)
         {
-            _resendRange.BeginSeqNo = begin;
-            _resendRange.EndSeqNo = end;
-            _resendRange.ChunkEndSeqNo = chunkEnd == ResendRange.NOT_SET ? end : chunkEnd;
+            _resendRange.Set(begin, end, trigger, resendRequest, chunkEnd);
         }
 
-        public bool ResendRequested()
+        internal void ResetResendRange()
+        {
+            _resendRange.Reset();
+        }
+
+        public bool IsResendRequested()
         {
             return !(_resendRange.BeginSeqNo == 0 && _resendRange.EndSeqNo == 0);
         }
 
         public void Queue(SeqNumType msgSeqNum, Message msg)
         {
-            if (!MsgQueue.ContainsKey(msgSeqNum))
-            {
-                MsgQueue.Add(msgSeqNum, msg);
-            }
+            MsgQueue.TryAdd(msgSeqNum, msg);
         }
 
         public void ClearQueue()
@@ -308,25 +316,12 @@ namespace QuickFix
 
         public QuickFix.Message? Dequeue(SeqNumType num)
         {
-            if (MsgQueue.ContainsKey(num))
-            {
-                QuickFix.Message msg = MsgQueue[num];
-                MsgQueue.Remove(num);
-                return msg;
-            }
-            return null;
+            return MsgQueue.Remove(num, out Message? msg) ? msg : null;
         }
 
         public Message? Retrieve(SeqNumType msgSeqNum)
         {
-            if (MsgQueue.ContainsKey(msgSeqNum))
-            {
-                Message msg = MsgQueue[msgSeqNum];
-                MsgQueue.Remove(msgSeqNum);
-                return msg;
-            }
-
-            return null;
+            return MsgQueue.Remove(msgSeqNum, out Message? msg) ? msg : null;
         }
 
         /// <summary>
@@ -395,7 +390,7 @@ namespace QuickFix
             lock (_sync)
             {
                 MessageStore.Reset();
-                Log.OnEvent("Session reset: " + reason);
+                Log.Log(LogLevel.Information, "Session reset: {Reason}", reason);
             }
         }
 
@@ -418,7 +413,6 @@ namespace QuickFix
             if (_disposed) return;
             if (disposing)
             {
-                Log.Dispose();
                 MessageStore.Dispose();
             }
             _disposed = true;

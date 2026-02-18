@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using QuickFix.Logger;
 
 namespace QuickFix;
@@ -16,7 +17,7 @@ public class SocketInitiatorThread : IResponder
 {
     public Session Session { get; }
     public Transport.SocketInitiator Initiator { get; }
-    public NonSessionLog NonSessionLog { get; }
+    public ILogger NonSessionLog { get; }
 
     public const int BUF_SIZE = 512;
 
@@ -27,30 +28,30 @@ public class SocketInitiatorThread : IResponder
     private readonly CancellationTokenSource _readCancellationTokenSource = new();
     private readonly IPEndPoint _socketEndPoint;
     private readonly SocketSettings _socketSettings;
-    private bool _isDisconnectRequested = false;
+    private readonly IQuickFixLoggerFactory _loggerFactory;
 
     /// <summary>
     /// Keep a task for handling async read
     /// </summary>
     private Task<int>? _currentReadTask;
 
-    public SocketInitiatorThread(
+    internal SocketInitiatorThread(
         Transport.SocketInitiator initiator,
         Session session,
         IPEndPoint socketEndPoint,
         SocketSettings socketSettings,
-        NonSessionLog nonSessionLog)
+        IQuickFixLoggerFactory loggerFactory)
     {
         Initiator = initiator;
         Session = session;
-        NonSessionLog = nonSessionLog;
+        _loggerFactory = loggerFactory;
+        NonSessionLog = _loggerFactory.CreateNonSessionLogger<SocketInitiatorThread>();
         _socketEndPoint = socketEndPoint;
         _socketSettings = socketSettings;
     }
 
     public void Start()
     {
-        _isDisconnectRequested = false;
         _thread = new Thread(Transport.SocketInitiator.SocketInitiatorThreadStart);
         _thread.Start(this);
     }
@@ -81,7 +82,7 @@ public class SocketInitiatorThread : IResponder
     /// <returns>Stream representing the (network)connection to the other party</returns>
     protected virtual Stream SetupStream()
     {
-        return Transport.StreamFactory.CreateClientStream(_socketEndPoint, _socketSettings, NonSessionLog);
+        return Transport.StreamFactory.CreateClientStream(_socketEndPoint, _socketSettings, _loggerFactory);
     }
 
     public bool Read()
@@ -90,23 +91,16 @@ public class SocketInitiatorThread : IResponder
         {
             int bytesRead = ReadSome(_readBuffer, 1000);
             if (bytesRead > 0)
-                _parser.AddToStream(_readBuffer, bytesRead);
+                _parser.AddToStream(new ReadOnlySpan<byte>(_readBuffer, 0, bytesRead));
             else
                 Session.Next();
 
             ProcessStream();
             return true;
         }
-        catch (ObjectDisposedException)
-        {
-            // this exception means _socket is already closed when poll() is called
-            if (_isDisconnectRequested == false)
-                Disconnect();
-        }
         catch (Exception e)
         {
-            Session.Log.OnEvent(e.ToString());
-            Disconnect();
+            Session.Disconnect(e.ToString()); // also calls this instance's Disconect()
         }
         return false;
     }
@@ -189,14 +183,14 @@ public class SocketInitiatorThread : IResponder
             throw new ApplicationException("Initiator is not connected (uninitialized stream)");
         }
 
-        byte[] rawData = CharEncoding.GetBytes(data);
-        _stream.Write(rawData, 0, rawData.Length);
+        using ValueDisposable _ = CharEncoding.GetBytes(data, out ReadOnlySpan<byte> rawData);
+        _stream.Write(rawData);
+
         return true;
     }
 
     public void Disconnect()
     {
-        _isDisconnectRequested = true;
         _readCancellationTokenSource.Cancel();
         _readCancellationTokenSource.Dispose();
 

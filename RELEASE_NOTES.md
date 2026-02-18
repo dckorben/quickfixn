@@ -9,17 +9,66 @@ What's New
 ----------
 
 **CAUTION:**  
-* **1.13.0 has moved to .NET 8 (as Microsoft is ending .NET 6 support on Nov 12, 2024)
+* **Starting with 1.14, the QuickFIX message **nuget** packages have been renamed!**
+    **Please remove the old package and import the new package!**
+    (See issue #627 for more information.)
+
+    The new names are as follows (note the deleted period):
+    * ~~QuickFIX.FIX4.0.{ver}~~ becomes **QuickFIX.FIX40.{ver}**
+    * ~~QuickFIX.FIX4.1.{ver}~~ becomes **QuickFIX.FIX41.{ver}**
+    * ~~QuickFIX.FIX4.2.{ver}~~ becomes **QuickFIX.FIX42.{ver}**
+    * ~~QuickFIX.FIX4.3.{ver}~~ becomes **QuickFIX.FIX43.{ver}**
+    * ~~QuickFIX.FIX4.4.{ver}~~ becomes **QuickFIX.FIX44.{ver}**
+    * ~~QuickFIX.FIX5.0.{ver}~~ becomes **QuickFIX.FIX50.{ver}**
+    * ~~QuickFIX.FIX5.0SP1.{ver}~~ becomes **QuickFIX.FIX50SP1.{ver}**
+    * ~~QuickFIX.FIX5.0SP2.{ver}~~ becomes **QuickFIX.FIX50SP2.{ver}**
+    * ~~QuickFIX.FIXT1.1.{ver}~~ becomes **QuickFIX.FIXT11.{ver}**
+  
+* **1.13.0 has moved to .NET 8 (as Microsoft is ending .NET 6 support on Nov 12, 2024)**
 * **There are breaking changes between 1.12 and 1.13!  Please review the 1.13.0 notes below.**
 * **There are breaking changes between 1.11 and 1.12!  Please review the 1.12.0 notes below.**
 * **There are breaking changes between 1.10 and 1.11!  Please review the 1.11.0 notes below.**
 
-### next release
+
+### next release (v1.14.1 or higher)
+* #841 - support for CME Enhanced Resend (gbirchmeier)
+
+
+### v1.14.0
+
+**Breaking changes**
+* #627 - rename message packages to get rid of superfluous period (gbirchmeier)
+    * e.g. QuickFIX.FIX4.4 is now QuickFIX.FIX44, etc.
+* #679 - Change logging to use .NET ILogger API aka Microsoft.Extensions.Logging (jkulubya/gbirchmeier)  
+         The existing logging interface is preserved and can still be used.  
+         Breaks to public interface:
+     * changed ctors to be internal: AcceptorSocketDescriptor, Session, SocketInitiatorThread
+     * SessionFactory is now internal
+     * type of SocketInitiatorThread.NonSessionLog is now ILogger
 
 **Non-breaking changes**
 * #939 - minor checkTooHigh/checkTooLow refactor in Session.cs (gbirchmeier)
 * #941 - clarify ResendRequest-related log message, add UT coverage for Session (gbirchmeier)
 * #895 - fix: When SSLCACertificate is empty an error is logged and it fails to start (dckorben)
+* #942 - fix: field 369 (LastMsgSeqNumProcessed) wrong in ResendRequest message (gbirchmeier)
+* #940 - Create an alternate CharEncoding.GetBytes impl which uses ArrayPool to improve memory performance (VAllens)
+* #951 - fix: restore Session disconnect during SocketInitiatorThread.Read exception (gbirchmeier/trevor-bush)
+* #963 - fix: concurrency bug with NonSessionLog on Windows (gbirchmeier)
+* #196 - fix: Acceptor.Stop() then restart now works (huwmjenkins/vyourtchenko)
+* #956 - fix: FileLog.Clear() broke in 1.13, now fixed again (hansw96/gbirchmeier)
+* #950 - added the ability to mask fields when converting a FIX message to FIX JSON (trevor-bush)
+* #765 - overhaul of DateTimeConverter (Rob-Hague/vyourtchenko/gbirchmeier)
+* #964 - Reduce unnecessary ContainsKey function calls to avoid multiple duplicate key lookups (VAllens)
+* #969 - correct LinesOfText in DDs to not be required; make ATs not auto-echo News (gbirchmeier)
+* #965 - Reusing StringBuilder with Object Pooling (VAllens)
+* #980 - fix: ToJSON returns invalid json when content contains newlines/tabs/etc (Rob-Hague)
+* #309 - fix: obey a SeqReset-GapFill even if it 'replaces' a message that was processed off
+         queue in a ResendRequest series (gbirchmeier/oclancy)
+* #979 - improve DDTool: nullable enable, custom name, generate csproj if needed (gbirchmeier)
+* #978 - delete some redundant lines in SocketInitiatorThreadStart (gbirchmeier)
+
+### v1.13.1
+* backport #951 to 1.13
 
 ### v1.13.0
 
@@ -28,7 +77,7 @@ What's New
 * #878 - corrections to tag 45 "Side" in various DDs (gbirchmeier) - most people won't notice, easy fix if they do
      * fix typo in FIX50 and FIX50SP1: `CROSS_SHORT_EXXMPT` fixed to `CROSS_SHORT_EXEMPT`
      * correction in FIX41 and FIX42: `D` to `UNDISCLOSED`
-* #863 - Change Message.ToString() to not alter object state anymore. (gbirchmeier)
+* #863 - Change Message.ToString() to not alter object state anymore. (gbirchmeier)  
          Use new function Message.ConstructString() if you need BodyLength/CheckSum to be updated.
 * #887 - cleanup/nullable-ize FixValues, Session, DataDictionary, DataDictionaryProvider, Message, MessageCracker,
          SocketSettings, SslStreamFactory (gbirchmeier)
@@ -72,6 +121,12 @@ What's New
 * #926 - don't init FileLog writers until first use (Rob-Hague)
 * #931 - bugfix in FixToJson example program
 * #934 - fix an obscure failure of Message.FromString when a message ends in a group (and lacks a checksum) (gbirchmeier)
+
+### v1.12.2
+* backport #951 to 1.12
+
+### v1.12.1
+There is no v1.12.1.  (A bad build was uploaded to nuget, so this number is dead.)
 
 ### v1.12.0
 

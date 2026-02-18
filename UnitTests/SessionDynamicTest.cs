@@ -5,7 +5,6 @@ using System.Threading;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
-
 using NUnit.Framework;
 using QuickFix;
 using QuickFix.Logger;
@@ -332,8 +331,12 @@ public class SessionDynamicTest
         msg.Header.SetField(new QuickFix.Fields.MsgSeqNum(1));
         msg.Header.SetField(new QuickFix.Fields.SendingTime(System.DateTime.UtcNow));
         msg.SetField(new QuickFix.Fields.HeartBtInt(300));
+
         // Simple logon message
-        s.Send(CharEncoding.GetBytes(msg.ConstructString()));
+        using (CharEncoding.GetBytes(msg.ConstructString(), out ReadOnlySpan<byte> bytes))
+        {
+            s.Send(bytes, SocketFlags.None);
+        }
     }
 
     void ClearLogs()
@@ -359,8 +362,8 @@ public class SessionDynamicTest
     public void TearDown()
     {
         _listenSocket?.Close();
-        _initiator?.Stop(true);
-        _acceptor?.Stop(true);
+        _initiator?.Dispose();
+        _acceptor?.Dispose();
 
         _initiator = null;
         _acceptor = null;

@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using System;
+using Microsoft.Extensions.Logging;
 using QuickFix.Logger;
 
 namespace QuickFix
@@ -17,55 +17,55 @@ namespace QuickFix
     {
         public enum State { RUNNING, SHUTDOWN_REQUESTED, SHUTDOWN_COMPLETE }
 
-        public State ReactorState
-        {
-            get { lock (_sync) { return _state; } }
-        }
+        public State ReactorState => _state;
+
+        /// <summary>
+        /// Gets a value indicating whether this instance is running.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if this instance is running; otherwise, <c>false</c>.
+        /// </value>
+        public bool IsRunning => ReactorState == State.RUNNING;
 
         private readonly object _sync = new ();
-        private State _state = State.RUNNING;
+        private State _state = State.SHUTDOWN_COMPLETE;
         private long _nextClientId = 0;
-        private Thread? _serverThread = null;
         private readonly Dictionary<long, ClientHandlerThread> _clientThreads = new ();
         private readonly TcpListener _tcpListener;
         private readonly SocketSettings _socketSettings;
-        private readonly IPEndPoint _serverSocketEndPoint;
         private readonly AcceptorSocketDescriptor? _acceptorSocketDescriptor;
-        private readonly NonSessionLog _nonSessionLog;
+        private readonly ILogger _nonSessionLog;
+        private readonly IQuickFixLoggerFactory _loggerFactory;
 
         internal ThreadedSocketReactor(
             IPEndPoint serverSocketEndPoint,
             SocketSettings socketSettings,
             AcceptorSocketDescriptor? acceptorSocketDescriptor,
-            NonSessionLog nonSessionLog)
+            IQuickFixLoggerFactory loggerFactory)
         {
             _socketSettings = socketSettings;
-            _serverSocketEndPoint = serverSocketEndPoint;
-            _tcpListener = new TcpListener(_serverSocketEndPoint);
+            _tcpListener = new TcpListener(serverSocketEndPoint);
             _acceptorSocketDescriptor = acceptorSocketDescriptor;
-            _nonSessionLog = nonSessionLog;
+            _loggerFactory = loggerFactory;
+            _nonSessionLog = loggerFactory.CreateNonSessionLogger<ThreadedSocketReactor>();
         }
 
         public void Start()
         {
             lock (_sync)
             {
-                if (_state == State.RUNNING && _serverThread is null)
+                if( State.SHUTDOWN_COMPLETE == _state )
                 {
-                    if (State.SHUTDOWN_REQUESTED != _state)
+                    try
                     {
-                        try
-                        {
-                            _tcpListener.Start();
-                        }
-                        catch(Exception e)
-                        {
-                            LogError("Error starting listener", e);
-                            throw;
-                        }
+                        _tcpListener.Start();
+                        _state = State.RUNNING;
+                        _tcpListener.BeginAcceptTcpClient(AcceptTcpClientCallback, _tcpListener);
                     }
-                    _serverThread = new Thread(Run);
-                    _serverThread.Start();
+                    catch (Exception e) {
+                        _nonSessionLog.Log(LogLevel.Error, e, "Error starting listener");
+                        throw;
+                    }
                 }
             }
         }
@@ -74,67 +74,57 @@ namespace QuickFix
         {
             lock (_sync)
             {
-                if (State.RUNNING == _state)
+                if (IsRunning)
                 {
                     try
                     {
                         _state = State.SHUTDOWN_REQUESTED;
-                        using (TcpClient killer = new TcpClient())
-                        {
-                            try
-                            {
-                                IPEndPoint killerEndPoint =  new IPEndPoint(IPAddress.Loopback, _serverSocketEndPoint.Port);
-                                killer.Connect(killerEndPoint);
-                            }
-                            catch (Exception e)
-                            {
-                                LogError("Tried to interrupt server socket but was already closed", e);
-                            }
-                        }
+                        _tcpListener.Server.Close();
+                        _tcpListener.Stop();
+                        ShutdownClientHandlerThreads();
                     }
                     catch (Exception e)
                     {
-                        LogError("Error while closing server socket", e);
+                        _nonSessionLog.Log(LogLevel.Error, e, "Error while closing server socket");
                     }
                 }
             }
         }
 
-        public void Run()
+        private void AcceptTcpClientCallback( IAsyncResult ar )
         {
-            while (State.RUNNING == ReactorState)
-            {
-                try
-                {
-                    TcpClient client = _tcpListener.AcceptTcpClient();
-                    if (State.RUNNING == ReactorState)
-                    {
-                        ApplySocketOptions(client, _socketSettings);
-                        ClientHandlerThread t = new ClientHandlerThread(
-                            client, _nextClientId++, _socketSettings, _acceptorSocketDescriptor, _nonSessionLog);
-                        t.Exited += OnClientHandlerThreadExited;
-                        lock (_sync)
-                        {
-                            _clientThreads.Add(t.Id, t);
-                        }
+            // If socket is in process of shutting down then a client may
+            // still be able to connect until it has shutdown
+            // but really we don't want to do anything with the connection so just ignore it
+            if (!IsRunning)
+                return;
 
-                        t.Start();
-                    }
-                    else
-                    {
-                        client.Dispose();
-                    }
-                }
-                catch (Exception e)
+            TcpListener listener = (TcpListener)ar.AsyncState!;
+            try
+            {
+                TcpClient client = listener.EndAcceptTcpClient(ar);
+                ApplySocketOptions(client, _socketSettings);
+                ClientHandlerThread t = new ClientHandlerThread(
+                    client, _nextClientId++, _socketSettings, _acceptorSocketDescriptor, _loggerFactory);
+                t.Exited += OnClientHandlerThreadExited;
+                lock (_sync)
                 {
-                    if (State.RUNNING == ReactorState)
-                        LogError("Error accepting connection", e);
+                    _clientThreads.Add(t.Id, t);
                 }
+                // FIXME set the client thread's exception handler here
+                t.Start();
             }
-            _tcpListener.Server.Close();
-            _tcpListener.Stop();
-            ShutdownClientHandlerThreads();
+            catch (Exception e)
+            {
+                if (IsRunning)
+                    _nonSessionLog.Log(LogLevel.Error, e, "Error accepting connection");
+            }
+            if( IsRunning )
+            {
+                listener.BeginAcceptTcpClient( AcceptTcpClientCallback, listener );
+            }
         }
+
 
         internal void OnClientHandlerThreadExited(object sender, ClientHandlerThread.ExitedEventArgs e)
         {
@@ -191,7 +181,7 @@ namespace QuickFix
                         }
                         catch (Exception e)
                         {
-                            LogError("Error shutting down", e);
+                            _nonSessionLog.Log(LogLevel.Error, e, "Error shutting down");
                         }
                         t.Dispose();
                     }
@@ -199,15 +189,6 @@ namespace QuickFix
                     _state = State.SHUTDOWN_COMPLETE;
                 }
             }
-        }
-
-        /// <summary>
-        /// Write to the NonSessionLog
-        /// </summary>
-        /// <param name="s"></param>
-        /// <param name="ex"></param>
-        private void LogError(string s, Exception? ex = null) {
-            _nonSessionLog.OnEvent(ex is null ? $"{s}" : $"{s}: {ex}");
         }
     }
 }
