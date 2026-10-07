@@ -186,6 +186,11 @@ internal sealed class SslStreamFactory
             return false;
         }
 
+        if (string.IsNullOrEmpty(_socketSettings.CACertificatePath)) { // No Custom CA specified, cannot validate
+            _nonSessionLog.Log(LogLevel.Warning, "CACertificatePath is not specified");
+            return false;
+        }
+
         // Custom CA and Certificate validation
         string caCertPath = StringUtil.FixSlashes(_socketSettings.CACertificatePath);
 
