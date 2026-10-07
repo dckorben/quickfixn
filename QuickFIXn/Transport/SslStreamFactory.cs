@@ -164,9 +164,15 @@ internal sealed class SslStreamFactory
         SslPolicyErrors sslPolicyErrors,
         string enhancedKeyUsage)
     {
-        // Accept without looking at if the certificate is valid if validation is disabled
+        // Accept without looking if validation is disabled
         if (_socketSettings.ValidateCertificates == false)
             return true;
+
+        if (string.IsNullOrEmpty(_socketSettings.CACertificatePath)) { // No Custom CA specified
+            if (sslPolicyErrors == SslPolicyErrors.None) // SslStream Validated Certificate
+                return true;
+            return false;
+        }
 
         if (certificate is null)
             return false;
@@ -180,95 +186,53 @@ internal sealed class SslStreamFactory
             return false;
         }
 
-        // If CA Certificate is specified then validate against the CA certificate, otherwise it is validated against the installed certificates
-        if (string.IsNullOrEmpty(_socketSettings.CACertificatePath)) {
-            _nonSessionLog.Log(LogLevel.Information, "CACertificatePath is not specified, using local trust store");
+        // Custom CA and Certificate validation
+        string caCertPath = StringUtil.FixSlashes(_socketSettings.CACertificatePath);
 
-            X509Chain chain = new();
-            chain.ChainPolicy.RevocationMode = _socketSettings.CheckCertificateRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
-
-            bool isValid = chain.Build((X509Certificate2)certificate);
-            if (isValid)
-            {
-                bool isChainValid = true;
-                foreach (var status in chain.ChainStatus)
-                {
-                    if (!status.Status.HasFlag(X509ChainStatusFlags.NoError))
-                    {
-                        _nonSessionLog.Log(LogLevel.Warning,
-                            "Certificate Chain: {Status} {StatusInformation}",
-                            status.Status, status.StatusInformation);
-
-                        isChainValid = false;
-                        break;
-                    }
-                }
-                if (isChainValid)
-                    // resets the sslPolicyErrors.RemoteCertificateChainErrors status
-                    sslPolicyErrors &= ~SslPolicyErrors.RemoteCertificateChainErrors;
-                else
-                    sslPolicyErrors |= SslPolicyErrors.RemoteCertificateChainErrors;
-            }
-            else {
-                foreach (var status in chain.ChainStatus)
-                {
-                    _nonSessionLog.Log(LogLevel.Error,
-                        "Certificate Chain Build Failure: {Status} {StatusInformation}",
-                        status.Status, status.StatusInformation);
-                }
-
-                sslPolicyErrors |= SslPolicyErrors.RemoteCertificateChainErrors;
-            }
-        }
-        else
+        X509Certificate2? caCert = SslCertCache.LoadCertificate(caCertPath, null);
+        if (caCert is null)
         {
-            string caCertPath = StringUtil.FixSlashes(_socketSettings.CACertificatePath);
+            _nonSessionLog.Log(LogLevel.Error,
+                "Certificate '{CertificatePath}' could not be loaded from store or path '{Directory}'", caCertPath,
+                Directory.GetCurrentDirectory());
+            return false;
+        }
 
-            X509Certificate2? caCert = SslCertCache.LoadCertificate(caCertPath, null);
-            if (caCert is null)
+        X509Chain chain = new();
+        // add all your extra certificate chain
+        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        chain.ChainPolicy.CustomTrustStore.Add(caCert);
+        chain.ChainPolicy.RevocationMode = _socketSettings.CheckCertificateRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
+
+        bool isValid = chain.Build((X509Certificate2)certificate);
+        if (isValid) {
+            bool isChainValid = true;
+            foreach (var status in chain.ChainStatus) {
+                if (!status.Status.HasFlag(X509ChainStatusFlags.NoError))
+                {
+                    _nonSessionLog.Log(LogLevel.Warning,
+                        "Certificate Chain: {Status} {StatusInformation}",
+                        status.Status, status.StatusInformation);
+
+                    isChainValid = false;
+                    break;
+                }
+            }
+            if (isChainValid)
+                // resets the sslPolicyErrors.RemoteCertificateChainErrors status
+                sslPolicyErrors &= ~SslPolicyErrors.RemoteCertificateChainErrors;
+            else
+                sslPolicyErrors |= SslPolicyErrors.RemoteCertificateChainErrors;
+        }
+        else {
+            foreach (var status in chain.ChainStatus)
             {
                 _nonSessionLog.Log(LogLevel.Error,
-                    "Certificate '{CertificatePath}' could not be loaded from store or path '{Directory}'", caCertPath,
-                    Directory.GetCurrentDirectory());
-                return false;
+                    "Certificate Chain Build Failure: {Status} {StatusInformation}",
+                    status.Status, status.StatusInformation);
             }
 
-            X509Chain chain = new();
-            // add all your extra certificate chain
-            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            chain.ChainPolicy.CustomTrustStore.Add(caCert);
-            chain.ChainPolicy.RevocationMode = _socketSettings.CheckCertificateRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
-
-            bool isValid = chain.Build((X509Certificate2)certificate);
-            if (isValid) {
-                bool isChainValid = true;
-                foreach (var status in chain.ChainStatus) {
-                    if (!status.Status.HasFlag(X509ChainStatusFlags.NoError))
-                    {
-                        _nonSessionLog.Log(LogLevel.Warning,
-                            "Certificate Chain: {Status} {StatusInformation}",
-                            status.Status, status.StatusInformation);
-
-                        isChainValid = false;
-                        break;
-                    }
-                }
-                if (isChainValid)
-                    // resets the sslPolicyErrors.RemoteCertificateChainErrors status
-                    sslPolicyErrors &= ~SslPolicyErrors.RemoteCertificateChainErrors;
-                else
-                    sslPolicyErrors |= SslPolicyErrors.RemoteCertificateChainErrors;
-            }
-            else {
-                foreach (var status in chain.ChainStatus)
-                {
-                    _nonSessionLog.Log(LogLevel.Error,
-                        "Certificate Chain Build Failure: {Status} {StatusInformation}",
-                        status.Status, status.StatusInformation);
-                }
-
-                sslPolicyErrors |= SslPolicyErrors.RemoteCertificateChainErrors;
-            }
+            sslPolicyErrors |= SslPolicyErrors.RemoteCertificateChainErrors;
         }
 
         // Any basic authentication check failed, do after checking CA
