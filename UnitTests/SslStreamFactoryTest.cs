@@ -181,7 +181,7 @@ public class SslStreamFactoryTest
     }
 
     [Test]
-    public void ServerLocalIntermediateCertificateChain()
+    public void ServerLocalIntermediateCertificateChainFails()
     {
         SettingsDictionary dict = new();
         dict.SetBool(SessionSettings.SSL_ENABLE, true);
@@ -204,7 +204,7 @@ public class SslStreamFactoryTest
     }
 
     [Test]
-    public void ServerPublicCertificateChain()
+    public void ServerPublicCertificateChainUsingLocalCertFails()
     {
         SettingsDictionary dict = new();
         dict.SetBool(SessionSettings.SSL_ENABLE, true);
