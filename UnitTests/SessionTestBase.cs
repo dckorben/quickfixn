@@ -33,20 +33,26 @@ public abstract class SessionTestBase
         var logFactory = new LogFactoryAdapter(new NullLogFactory());
 
         // acceptor
-        _session = new QuickFix.Session(false, _application, new MemoryStoreFactory(), _sessionId,
-            new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(_config), 0, logFactory, new QuickFix.DefaultMessageFactory(), "blah");
+        _session = new QuickFix.Session(false, _application, new MemoryStoreFactory(),
+            _sessionId, new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(_config),
+            0, logFactory, new QuickFix.DefaultMessageFactory(), "blah");
         _session.SetResponder(_responder);
         _session.CheckLatency = false;
 
         // initiator
-        _session2 = new QuickFix.Session(true, _application, new MemoryStoreFactory(), new QuickFix.SessionID("FIX.4.2", "OTHER_SENDER", "OTHER_TARGET"),
-            new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(_config), 0, logFactory, new QuickFix.DefaultMessageFactory(), "blah");
+        _session2 = new QuickFix.Session(true, _application, new MemoryStoreFactory(),
+            new QuickFix.SessionID("FIX.4.2", "OTHER_SENDER", "OTHER_TARGET"),
+            new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(_config),
+            0, logFactory, new QuickFix.DefaultMessageFactory(), "blah");
         _session2.SetResponder(_responder);
         _session2.CheckLatency = false;
 
         _seqNum = 1;
     }
 
+    /// <summary>
+    /// The UT sends a logon to _session
+    /// </summary>
     public void Logon()
     {
         SendLogon(new QuickFix.FIX42.Logon());

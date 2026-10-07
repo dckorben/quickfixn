@@ -21,8 +21,31 @@ public class SettingsDictionaryTests
         d.SetString("STRINGKEY2", "stringvalue2");
         Assert.That(d.GetString("STRINGKEY1"), Is.EqualTo("STRINGVALUE1"));
         Assert.That(d.GetString("STRINGKEY2"), Is.EqualTo("stringvalue2"));
-        Assert.That(d.GetString("STRINGKEY2", true), Is.EqualTo("STRINGVALUE2"));
         Assert.Throws<ConfigError>(delegate { d.GetString("STRINGKEY3"); });
+
+        #pragma warning disable CS0618
+        Assert.That(d.GetString("STRINGKEY2", true), Is.EqualTo("STRINGVALUE2"));
+        #pragma warning restore CS0618
+    }
+
+    [Test]
+    public void TestGetChar()
+    {
+        SettingsDictionary d = new();
+        d.SetString("CHARKEY1", "x");
+        d.SetString("CHAR-TOOLONG", "xxxxxxx");
+        d.SetString("CHAR-EMPTY", "");
+
+        Assert.That(d.GetChar("cHaRkEy1"), Is.EqualTo('x'));
+
+        var ex = Assert.Throws<ConfigError>(delegate { d.GetChar("CHAR-TOOLONG"); })!;
+        Assert.That(ex.Message, Is.EqualTo("Configuration failed: Value is not a char for key: CHAR-TOOLONG"));
+
+        ex = Assert.Throws<ConfigError>(delegate { d.GetChar("CHAR-EMPTY"); })!;
+        Assert.That(ex.Message, Is.EqualTo("Configuration failed: Value is empty for key: CHAR-EMPTY"));
+
+        ex = Assert.Throws<ConfigError>(delegate { d.GetChar("NOTPRESENT"); })!;
+        Assert.That(ex.Message, Is.EqualTo("Configuration failed: No value for key: NOTPRESENT"));
     }
 
     [Test]
@@ -82,6 +105,26 @@ public class SettingsDictionaryTests
         Assert.That(d.GetBool("BOOLKEY2"), Is.False);
         Assert.Throws<ConfigError>(delegate { d.GetBool("BOOLKEY3"); });
         Assert.Throws<ConfigError>(delegate { d.GetBool("BADBOOLKEY2"); });
+    }
+
+    [Test]
+    public void TestGetInt()
+    {
+        SettingsDictionary d = new();
+        d.SetString("INTKEY1", "100");
+        d.SetString("INT-WRONG", "pants");
+        d.SetString("INT-EMPTY", "");
+
+        Assert.That(d.GetInt("InTkEy1"), Is.EqualTo(100));
+
+        var ex = Assert.Throws<ConfigError>(delegate { d.GetInt("INT-WRONG"); })!;
+        Assert.That(ex.Message, Is.EqualTo("Configuration failed: Incorrect data type"));
+
+        //ex = Assert.Throws<ConfigError>(delegate { d.GetInt("INT-EMPTY"); })!;
+        //Assert.That(ex.Message, Is.EqualTo("Value is empty for key: INT-EMPTY"));
+
+        ex = Assert.Throws<ConfigError>(delegate { d.GetInt("NOTPRESENT"); })!;
+        Assert.That(ex.Message, Is.EqualTo("Configuration failed: No value for key: NOTPRESENT"));
     }
 
     [Test]
@@ -187,5 +230,39 @@ public class SettingsDictionaryTests
         Assert.That(dupe.Count, Is.EqualTo(2));
         Assert.That(dupe.GetString("uNo"), Is.EqualTo("One"));
         Assert.That(dupe.GetString("DOs"), Is.EqualTo("2"));
+    }
+
+    [Test]
+    public void TestGetIntArray() {
+        SettingsDictionary settings = new("test");
+
+        // empty string becomes empty array
+        settings.SetString("myintarray", "");
+        Assert.That(settings.GetIntArray("myintarray"), Is.Empty);
+
+        int[] expected = [1, 33, 999];
+
+        // the intended input format
+        settings.SetString("myintarray", "1,33,999");
+        Assert.That(settings.GetIntArray("myintarray"), Is.EqualTo(expected));
+
+        // trailing & repeated commas ignored
+        settings.SetString("myintarray", "1,33,,999,");
+        Assert.That(settings.GetIntArray("myintarray"), Is.EqualTo(expected));
+
+        // spaces ignored
+        settings.SetString("myintarray", "1, 33, , 999, ");
+        Assert.That(settings.GetIntArray("myintarray"), Is.EqualTo(expected));
+
+        // sorted, dupes consolidated
+        settings.SetString("myintarray", "33, 1, , 999, 33, 1");
+        Assert.That(settings.GetIntArray("myintarray"), Is.EqualTo(expected));
+
+        // key not found
+        Assert.Throws<ConfigError>(delegate { settings.GetIntArray("nope"); });
+
+        // invalid values
+        settings.SetString("myintarray", "1, 33, , 999, fourteen, ");
+        Assert.Throws<ConfigError>(delegate { settings.GetIntArray("myintarray"); });
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using QuickFix.Fields;
 using QuickFix.Fields.Converters;
 
 namespace QuickFix;
@@ -51,6 +52,12 @@ public class SettingsDictionary : System.Collections.IEnumerable
             .ToDictionary(x => x.k, x => x.v);
     }
 
+    /// <summary>
+    /// Get a string value by case-insensitive key
+    /// </summary>
+    /// <param name="key">used for case-insensitive lookup</param>
+    /// <returns></returns>
+    /// <exception cref="ConfigError">if key is not found</exception>
     public string GetString(string key)
     {
         if (_data.TryGetValue(key.ToUpperInvariant(), out var val))
@@ -58,10 +65,21 @@ public class SettingsDictionary : System.Collections.IEnumerable
         throw new ConfigError($"No value for key: {key}");
     }
 
+    [Obsolete("This function will be removed in 1.16 (because it's unused)")]
     public String GetString(string key, bool capitalize)
     {
         string s = GetString(key);
         return capitalize ? s.ToUpperInvariant() : s;
+    }
+
+    public char GetChar(string key)
+    {
+        string s = GetString(key);
+        if (string.IsNullOrEmpty(s))
+            throw new ConfigError($"Value is empty for key: {key}");
+        if (s.Length > 1)
+            throw new ConfigError($"Value is not a char for key: {key}");
+        return s[0];
     }
 
     public int GetInt(string key)
@@ -144,6 +162,31 @@ public class SettingsDictionary : System.Collections.IEnumerable
         }
     }
 
+    public int[] GetIntArray(string key)
+    {
+        try
+        {
+            string[] items = GetString(key).Split(",");
+            List<int> rvList = [];
+            foreach (string item in items)
+            {
+                string it = item.Trim();
+                if (it == "")
+                    continue;
+                rvList.Add(int.Parse(it));
+            }
+            return rvList.Distinct().OrderBy(s=>s).ToArray();
+        }
+        catch (FormatException)
+        {
+            throw new ConfigError("Incorrect data type");
+        }
+        catch (QuickFIXException)
+        {
+            throw new ConfigError("No value for key: " + key);
+        }
+    }
+
     /// <summary>
     /// Return true if key is present AND value is true, else false
     /// </summary>
@@ -185,17 +228,17 @@ public class SettingsDictionary : System.Collections.IEnumerable
         };
     }
 
-    public TimeStampPrecision GetTimeStampPrecision(string key)
+    public TimePrecision GetTimeStampPrecision(string key)
     {
         string precision = GetString(key).ToUpperInvariant();
         if (precision.StartsWith("SECOND", StringComparison.InvariantCulture))
-            return TimeStampPrecision.Second;
+            return TimePrecision.Second;
         if (precision.StartsWith("MILLI", StringComparison.InvariantCulture))
-            return TimeStampPrecision.Millisecond;
+            return TimePrecision.Millisecond;
         if (precision.StartsWith("MICRO", StringComparison.InvariantCulture))
-            return TimeStampPrecision.Microsecond;
+            return TimePrecision.Microsecond;
         if (precision.StartsWith("NANO", StringComparison.InvariantCulture))
-            return TimeStampPrecision.Nanosecond;
+            return TimePrecision.Nanosecond;
         throw new ConfigError($"Illegal value {GetString(key)} for {key}");
     }
 
