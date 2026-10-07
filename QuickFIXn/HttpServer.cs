@@ -5,11 +5,20 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
-using QuickFix.Fields.Converters;
+using QuickFix.Fields;
 using QuickFix.ObjectPooling;
 
 namespace QuickFix;
 
+/// <summary>
+/// This server is primitive and should not be relied on for production environments.
+/// Also, it contains no logger, writing what few outputs it has to the console.
+/// This component is not a priority of the QF/n project,
+/// but we're always accepting of contributions to improve it.
+///
+/// See https://github.com/connamara/quickfixn/issues/738 for some remarks
+/// on why this component does not incorporate QF logging.
+/// </summary>
 public class HttpServer : IDisposable {
     private readonly HttpListener _httpListener;
     private readonly Thread _connectionThread;
@@ -186,8 +195,8 @@ public class HttpServer : IDisposable {
                 output.Write(buffer, 0, buffer.Length);
                 output.Close();
             }
-        } catch (HttpListenerException) {
-            Console.WriteLine("HTTP server was shut down.");
+        } catch (HttpListenerException ex) {
+            Console.WriteLine($"HTTP server was shut down\n: {ex}");
         }
     }
 
@@ -263,7 +272,7 @@ public class HttpServer : IDisposable {
         if (bool.TryParse(request.QueryString[ToggleParam.RefreshOnLogon], out var toRefreshOnLogon))
             session.RefreshOnLogon = toRefreshOnLogon;
         if (bool.TryParse(request.QueryString[ToggleParam.MsInTimestamp], out var toMsInTimestamp))
-            session.TimeStampPrecision = toMsInTimestamp ? TimeStampPrecision.Millisecond : TimeStampPrecision.Second;
+            session.TimeStampPrecision = toMsInTimestamp ? TimePrecision.Millisecond : TimePrecision.Second;
         if (bool.TryParse(request.QueryString[ToggleParam.PersistMessages], out var toPersistMessages))
             session.PersistMessages = toPersistMessages;
 
@@ -297,7 +306,7 @@ public class HttpServer : IDisposable {
         RenderDetailToggleRow(sb, sessionIdx, "ResetOnLogout", session.ResetOnLogout, ToggleParam.ResetOnLogout);
         RenderDetailToggleRow(sb, sessionIdx, "ResetOnDisconnect", session.ResetOnDisconnect, ToggleParam.ResetOnDisconnect);
         RenderDetailToggleRow(sb, sessionIdx, "RefreshOnLogon", session.RefreshOnLogon, ToggleParam.RefreshOnLogon);
-        RenderDetailToggleRow(sb, sessionIdx, "MillisecondsInTimestamp", session.TimeStampPrecision==TimeStampPrecision.Millisecond, ToggleParam.MsInTimestamp);
+        RenderDetailToggleRow(sb, sessionIdx, "MillisecondsInTimestamp", session.TimeStampPrecision==TimePrecision.Millisecond, ToggleParam.MsInTimestamp);
         RenderDetailToggleRow(sb, sessionIdx, "PersistMessages", session.PersistMessages, ToggleParam.PersistMessages);
         sb.AppendLine("    </table>");
     }

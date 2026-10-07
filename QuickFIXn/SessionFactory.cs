@@ -160,6 +160,14 @@ internal class SessionFactory
             session.ValidateLengthAndChecksum = settings.GetBool(SessionSettings.VALIDATE_LENGTH_AND_CHECKSUM);
         if (settings.Has(SessionSettings.RESETSEQUENCE_MESSAGE_REQUIRES_ORIGSENDINGTIME))
             session.RequiresOrigSendingTime = settings.GetBool(SessionSettings.RESETSEQUENCE_MESSAGE_REQUIRES_ORIGSENDINGTIME);
+        if (settings.Has(SessionSettings.CME_ENHANCED_RESEND))
+            session.CmeEnhancedResend = settings.GetBool(SessionSettings.CME_ENHANCED_RESEND);
+        if (settings.Has(SessionSettings.REDACT_FIELDS_IN_LOGS))
+            session.RedactFieldsInLogs = settings.GetIntArray(SessionSettings.REDACT_FIELDS_IN_LOGS);
+        if (settings.Has(SessionSettings.REDACTION_LOG_TEXT))
+            session.RedactionLogText = settings.GetString(SessionSettings.REDACTION_LOG_TEXT);
+        if (settings.Has(SessionSettings.FIELD_SEPARATOR_IN_MESSAGE_LOGS))
+            session.FieldSeparatorInMessageLogs = settings.GetChar(SessionSettings.FIELD_SEPARATOR_IN_MESSAGE_LOGS);
 
         return session;
     }
